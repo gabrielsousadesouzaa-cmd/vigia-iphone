@@ -38,6 +38,11 @@ BASE = os.getenv("NOS_BASE", "https://lojaonline.nos.pt")
 
 # Páginas onde procurar links para o produto. A lista de /iphone é carregada por
 # JavaScript, por isso é aberta num navegador real (Playwright) quando disponível.
+# Páginas de produto conhecidas, verificadas sempre (mesmo que não apareçam nas listas).
+PRODUTOS_FIXOS = [
+    f"{BASE}/produto/apple-iphone-18-pro-max-5g-256gb-prateado-256gb-67529",
+]
+
 PAGINAS_DESCOBERTA = [
     f"{BASE}/iphone",
     f"{BASE}/iphone-prestacoes",
@@ -279,6 +284,7 @@ def main() -> int:
 
     candidatos: set[str] = set(estado.get("urls_conhecidos", []))
     candidatos |= {u.strip() for u in os.getenv("URLS_EXTRA", "").split(",") if u.strip()}
+    candidatos |= {u for u in PRODUTOS_FIXOS if corresponde(u, cores, caixa_aberta)}
     paginas_ok = 0
     for pag_url in PAGINAS_DESCOBERTA:
         pag = obter(pag_url)
