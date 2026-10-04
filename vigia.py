@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 MODELO = os.getenv("MODELO") or "iphone-18-pro-max"
 CAPACIDADE = os.getenv("CAPACIDADE") or "256gb"
 NOME_MODELO = MODELO.replace("iphone", "iPhone").replace("-pro", " Pro").replace("-max", " Max").replace("-", " ")
-BASE = os.getenv("NOS_BASE", "https://lojaonline.nos.pt")
+BASE = (os.getenv("NOS_BASE") or "https://lojaonline.nos.pt")
 
 # Páginas onde procurar links para o produto. A lista de /iphone é carregada por
 # JavaScript, por isso é aberta num navegador real (Playwright) quando disponível.
@@ -220,7 +220,7 @@ def notificar(titulo_msg: str, corpo: str, url: str | None = None) -> bool:
     enviado = False
     topico = os.getenv("NTFY_TOPIC")
     if topico:
-        servidor = os.getenv("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
+        servidor = (os.getenv("NTFY_SERVER") or "https://ntfy.sh").rstrip("/")
         corpo_json = {
             "topic": topico,
             "title": titulo_msg,
@@ -277,9 +277,9 @@ def main() -> int:
                        "Se recebeste isto, as notificações estão a funcionar.", f"{BASE}/iphone")
         return 0 if ok else 1
 
-    cores = [c.strip().lower() for c in os.getenv("CORES", "branco,natural,prateado,prata,silver").split(",") if c.strip()]
+    cores = [c.strip().lower() for c in (os.getenv("CORES") or "branco,natural,prateado,prata,silver").split(",") if c.strip()]
     caixa_aberta = os.getenv("INCLUIR_CAIXA_ABERTA") == "1"
-    caminho_estado = os.getenv("STATE_FILE", "state.json")
+    caminho_estado = (os.getenv("STATE_FILE") or "state.json")
     estado = carregar_estado(caminho_estado)
 
     candidatos: set[str] = set(estado.get("urls_conhecidos", []))
