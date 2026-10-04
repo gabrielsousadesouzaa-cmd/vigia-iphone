@@ -246,7 +246,8 @@ def titulo(pagina: str, url: str) -> str:
 
 
 def preco(pagina: str) -> str | None:
-    m = re.search(r"pre[çc]o online a pronto\s*([\d.]+,\d{2})\s*€", normalizar(pagina))
+    limpo = re.sub(r"[\u200b-\u200d\ufeff\xa0]", " ", normalizar(pagina))
+    m = re.search(r"pre[çc]o\s+online\s+a\s+pronto\D{0,30}?([\d.]+,\d{2})", limpo)
     if m:
         return f"{m.group(1)} €"
     m = re.search(r'"price"\s*:\s*"?([\d.,]+)', pagina)
