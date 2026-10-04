@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vigia de stock: iPhone 15 Pro Max 256GB (prateado) na loja online da NOS.
+"""Vigia de stock: iPhone 18 Pro Max 256GB (prateado) na loja online da NOS.
 
 Corre periodicamente (GitHub Actions) e envia uma notificação push quando o
 modelo fica disponível. Só usa a biblioteca padrão do Python.
@@ -8,6 +8,8 @@ Configuração por variáveis de ambiente (todas opcionais excepto o canal de en
   NTFY_TOPIC          tópico do ntfy.sh para onde vão as notificações
   NTFY_SERVER         servidor ntfy (por omissão https://ntfy.sh)
   TELEGRAM_BOT_TOKEN  / TELEGRAM_CHAT_ID   envio alternativo por Telegram
+  MODELO              modelo a vigiar, como aparece no URL (por omissão "iphone-18-pro-max")
+  CAPACIDADE          capacidade (por omissão "256gb")
   CORES               cores aceites, separadas por vírgula
                       (por omissão "branco,natural,prateado,prata,silver")
   INCLUIR_CAIXA_ABERTA  "1" para aceitar também unidades "caixa aberta"
@@ -29,6 +31,9 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+MODELO = os.getenv("MODELO") or "iphone-18-pro-max"
+CAPACIDADE = os.getenv("CAPACIDADE") or "256gb"
+NOME_MODELO = MODELO.replace("iphone", "iPhone").replace("-pro", " Pro").replace("-max", " Max").replace("-", " ")
 BASE = os.getenv("NOS_BASE", "https://lojaonline.nos.pt")
 
 # Páginas onde procurar links para o produto. A lista de /iphone é carregada por
@@ -159,7 +164,7 @@ def links_produto(pagina: str) -> set[str]:
 
 def corresponde(url: str, cores: list[str], caixa_aberta: bool) -> bool:
     slug = normalizar(url)
-    if "iphone-15-pro-max" not in slug or "256gb" not in slug:
+    if not re.search(rf"{re.escape(MODELO)}(?![a-z0-9])", slug) or CAPACIDADE not in slug:
         return False
     if "caixa-aberta" in slug and not caixa_aberta:
         return False
@@ -282,6 +287,10 @@ def main() -> int:
             todos = links_produto(pag)
             novos = {u for u in todos if corresponde(u, cores, caixa_aberta)}
             modelos = sorted({m for u in todos for m in re.findall(r"iphone-\d+[a-z-]*?(?=-5g|-\d+(?:gb|tb))", normalizar(u))})
+            variantes = sorted({urllib.parse.unquote(u.split("?")[0].rsplit("/", 1)[-1]) for u in todos
+                                if re.search(rf"{re.escape(MODELO)}(?![a-z0-9])", normalizar(u))})
+            for v in variantes:
+                log(f"  variante do {NOME_MODELO} na loja: {v}")
             log(f"{pag_url}: {len(todos)} produtos na página, {len(novos)} correspondem. Modelos: {', '.join(modelos) or '-'}")
             candidatos |= novos
 
@@ -297,7 +306,7 @@ def main() -> int:
         return 1
 
     if not candidatos:
-        log("Nenhuma página do iPhone 15 Pro Max 256GB nas cores pedidas foi encontrada (ainda não listado ou sem stock).")
+        log(f"Nenhuma página do {NOME_MODELO} {CAPACIDADE.upper()} nas cores pedidas foi encontrada (ainda não listado ou sem stock).")
 
     notificados: dict = estado.get("notificados", {})
     resultados = {}
@@ -316,7 +325,7 @@ def main() -> int:
             algum_disponivel = True
             if chave not in notificados:
                 corpo = f"{nome}\nPreço: {valor or 'ver no site'}\nCorre! Está disponível na loja NOS."
-                if notificar("📱 iPhone 15 Pro Max 256GB DISPONÍVEL na NOS!", corpo, url):
+                if notificar(f"📱 {NOME_MODELO} {CAPACIDADE.upper()} DISPONÍVEL na NOS!", corpo, url):
                     notificados[chave] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         elif estado_prod == "esgotado" and chave in notificados:
             # Voltou a esgotar: rearmar para avisar na próxima reposição.

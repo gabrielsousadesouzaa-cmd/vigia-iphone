@@ -1,4 +1,4 @@
-name: Vigia iPhone 15 Pro Max
+name: Vigia iPhone 18 Pro Max
 
 on:
   schedule:
@@ -39,6 +39,8 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MODELO: ${{ vars.MODELO }}
+          CAPACIDADE: ${{ vars.CAPACIDADE }}
           CORES: ${{ vars.CORES }}
           URLS_EXTRA: ${{ vars.URLS_EXTRA }}
           INCLUIR_CAIXA_ABERTA: ${{ vars.INCLUIR_CAIXA_ABERTA }}
