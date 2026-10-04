@@ -28,7 +28,8 @@ fica disponível. Corre gratuitamente no GitHub Actions — não precisa de comp
 | Variável | `URLS_EXTRA` | URLs de produto específicos a vigiar, separados por vírgula |
 
 ## Como funciona
-- Procura links de produto `iphone-15-pro-max…256gb…<cor>` nas páginas de iPhone da NOS.
+- Abre as páginas de iPhone da NOS num navegador real (Chromium, porque a lista é carregada por
+  JavaScript) e procura links de produto `iphone-15-pro-max…256gb…<cor>`.
 - Em cada página de produto lê a disponibilidade (dados schema.org ou texto como
   "Esgotado" / "Adicionar ao carrinho").
 - Notifica **uma vez** quando fica disponível; se voltar a esgotar, rearma e avisa de novo na

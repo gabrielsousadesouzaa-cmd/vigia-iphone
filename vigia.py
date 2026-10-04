@@ -31,12 +31,11 @@ from datetime import datetime, timezone
 
 BASE = os.getenv("NOS_BASE", "https://lojaonline.nos.pt")
 
-# Páginas onde procurar links para o produto. A página do 15 Pro Max preto
-# tem o seletor de cores, que liga às outras variantes do mesmo modelo.
+# Páginas onde procurar links para o produto. A lista de /iphone é carregada por
+# JavaScript, por isso é aberta num navegador real (Playwright) quando disponível.
 PAGINAS_DESCOBERTA = [
     f"{BASE}/iphone",
     f"{BASE}/iphone-prestacoes",
-    f"{BASE}/produto/apple-iphone-15-pro-max-5g-256gb-tit%C3%A2nio-preto-256gb-53666?pt=i",
 ]
 
 HEADERS = {
@@ -64,7 +63,67 @@ def log(msg: str) -> None:
     print(f"[{datetime.now(timezone.utc):%Y-%m-%d %H:%M:%S}Z] {msg}", flush=True)
 
 
+_navegador = None
+
+
+def _abrir_navegador():
+    """Abre o Chromium (Playwright) uma vez; devolve None se não estiver instalado."""
+    global _navegador
+    if _navegador is None and os.getenv("SEM_NAVEGADOR") != "1":
+        try:
+            from playwright.sync_api import sync_playwright
+            pw = sync_playwright().start()
+            browser = pw.chromium.launch()
+            contexto = browser.new_context(user_agent=HEADERS["User-Agent"], locale="pt-PT")
+            _navegador = (pw, browser, contexto)
+        except Exception as e:
+            log(f"Navegador indisponível, a usar HTTP simples: {e}")
+            _navegador = False
+    return _navegador or None
+
+
+def fechar_navegador() -> None:
+    if _navegador:
+        pw, browser, _ = _navegador
+        browser.close()
+        pw.stop()
+
+
+def obter_renderizado(url: str) -> str | None:
+    """Abre a página num navegador real, para apanhar conteúdo carregado por JavaScript."""
+    nav = _abrir_navegador()
+    if not nav:
+        return None
+    pagina = nav[2].new_page()
+    try:
+        resp = pagina.goto(url, wait_until="domcontentloaded", timeout=45000)
+        if resp and resp.status == 404:
+            log(f"HTTP 404 em {url}")
+            return ""
+        try:
+            pagina.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:
+            pass
+        # Desce a página para forçar o carregamento de listas "lazy".
+        for _ in range(6):
+            pagina.mouse.wheel(0, 4000)
+            pagina.wait_for_timeout(700)
+        hrefs = pagina.eval_on_selector_all("a[href]", "els => els.map(e => e.href)")
+        extra = "".join(f'<a href="{h}"></a>' for h in hrefs)
+        return pagina.content() + extra
+    except Exception as e:
+        log(f"Erro no navegador em {url}: {e}")
+        return None
+    finally:
+        pagina.close()
+
+
 def obter(url: str, tentativas: int = 3) -> str | None:
+    renderizado = obter_renderizado(url)
+    if renderizado == "":
+        return None
+    if renderizado:
+        return renderizado
     for i in range(tentativas):
         try:
             req = urllib.request.Request(url, headers=HEADERS)
@@ -90,10 +149,10 @@ def normalizar(texto: str) -> str:
 
 def links_produto(pagina: str) -> set[str]:
     encontrados = set()
-    for href in re.findall(r"""["'](?:https?://lojaonline\.nos\.pt)?(/produto/[^"'\s<>]+)""", pagina):
+    for href in re.findall(r"""["'](?:https?://[^/"'\s]+)?(/produto/[^"'\s<>\\]+)""", pagina):
         encontrados.add(BASE + html.unescape(href).split("#")[0])
     # Também apanha URLs escapados dentro de JSON (\/produto\/...)
-    for href in re.findall(r"(\\/produto\\/[^\"'\s<>]+)", pagina):
+    for href in re.findall(r"(\\/produto\\/[^\"'\s<>]+?)(?=\\?[\"'\s<>]|$)", pagina):
         encontrados.add(BASE + href.replace("\\/", "/"))
     return encontrados
 
@@ -273,4 +332,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        codigo = main()
+    finally:
+        fechar_navegador()
+    sys.exit(codigo)
