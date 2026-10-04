@@ -64,9 +64,11 @@ SEM_STOCK = [
     "produto não disponível", "brevemente",
 ]
 COM_STOCK = [
-    "adicionar ao carrinho", "adicionar ao cesto", "comprar agora", "continuar compra",
-    "comprar já", "em stock", "disponível para entrega", "entrega em",
+    "adicionar ao carrinho", "adicionar ao cesto", "comprar agora", "comprar já", "em stock",
 ]
+# Na NOS o estado de cada modalidade (a pronto / a prestações) aparece logo antes de
+# "Condições de compra": "Esgotado", "Comprar", "Pré-reserva", ...
+ESTADO_NOS = re.compile(r"(esgotado|indispon[ií]vel|pr[ée]-?reserva|reservar|comprar|adicionar(?: ao carrinho)?)\s+condi[çc][õo]es de compra")
 
 
 def log(msg: str) -> None:
@@ -206,6 +208,13 @@ def disponibilidade(pagina: str) -> tuple[str, str]:
     else:
         texto = re.sub(r"<script.*?</script>|<style.*?</style>|<!--.*?-->", " ", pagina, flags=re.S | re.I)
         texto = normalizar(re.sub(r"<[^>]+>", " ", texto))
+    estados = ESTADO_NOS.findall(texto)
+    if estados:
+        livres = [e for e in estados if not e.startswith(("esgotado", "indispon"))]
+        if livres:
+            return "disponivel", f"NOS: {estados}"
+        return "esgotado", f"NOS: {estados}"
+
     sem = [k for k in SEM_STOCK if k in texto]
     com = [k for k in COM_STOCK if k in texto]
     if sem and not com:
@@ -237,6 +246,9 @@ def titulo(pagina: str, url: str) -> str:
 
 
 def preco(pagina: str) -> str | None:
+    m = re.search(r"pre[çc]o online a pronto\s*([\d.]+,\d{2})\s*€", normalizar(pagina))
+    if m:
+        return f"{m.group(1)} €"
     m = re.search(r'"price"\s*:\s*"?([\d.,]+)', pagina)
     return f"{m.group(1)} €" if m else None
 
