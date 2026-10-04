@@ -120,6 +120,13 @@ def obter_renderizado(url: str) -> str | None:
             pagina.wait_for_timeout(700)
         hrefs = pagina.eval_on_selector_all("a[href]", "els => els.map(e => e.href)")
         extra = "".join(f'<a href="{h}"></a>' for h in hrefs)
+        botoes = pagina.eval_on_selector_all(
+            "button, a[role=button], input[type=submit]",
+            """els => els.filter(e => e.offsetParent !== null).map(e => ({
+                t: (e.innerText || e.value || '').trim().slice(0, 60),
+                d: !!(e.disabled || e.getAttribute('aria-disabled') === 'true' || /disabled/i.test(e.className))
+            })).filter(b => b.t)""")
+        extra += "<!--BOTOES:" + json.dumps(botoes, ensure_ascii=False).replace("--", "- -") + "-->"
         return pagina.content() + extra
     except Exception as e:
         log(f"Erro no navegador em {url}: {e}")
@@ -200,6 +207,14 @@ def disponibilidade(pagina: str) -> tuple[str, str]:
         return "disponivel", f"texto: {com}"
     if com and sem:
         # botão de compra presente e também algum aviso; tratar com cautela
+        if os.getenv("DIAGNOSTICO") != "0":
+            for k in com + sem:
+                for m in list(re.finditer(re.escape(k), texto))[:3]:
+                    trecho = re.sub(r"\s+", " ", texto[max(0, m.start() - 120):m.end() + 120])
+                    log(f"    contexto «{k}»: …{trecho}…")
+            b = re.search(r"<!--BOTOES:(.*?)-->", pagina, re.S)
+            if b:
+                log(f"    botões visíveis: {b.group(1)[:1500]}")
         return "desconhecido", f"sinais mistos: com={com} sem={sem}"
     return "desconhecido", "sem sinais reconhecidos"
 
