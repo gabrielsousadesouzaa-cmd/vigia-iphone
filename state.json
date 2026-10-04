@@ -1,5 +1,14 @@
 {
   "notificados": {},
-  "ultimo_resultado": {},
-  "urls_conhecidos": []
+  "ultimo_resultado": {
+    "https://lojaonline.nos.pt/produto/apple-iphone-18-pro-max-5g-256gb-prateado-256gb-67529": {
+      "estado": "desconhecido",
+      "motivo": "sinais mistos: com=['comprar já', 'disponível para entrega'] sem=['esgotado']",
+      "nome": "Apple iPhone 18 Pro Max 5G 256GB",
+      "preco": null
+    }
+  },
+  "urls_conhecidos": [
+    "https://lojaonline.nos.pt/produto/apple-iphone-18-pro-max-5g-256gb-prateado-256gb-67529"
+  ]
 }
