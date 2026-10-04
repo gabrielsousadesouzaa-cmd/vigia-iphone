@@ -37,7 +37,6 @@ PAGINAS_DESCOBERTA = [
     f"{BASE}/iphone",
     f"{BASE}/iphone-prestacoes",
     f"{BASE}/produto/apple-iphone-15-pro-max-5g-256gb-tit%C3%A2nio-preto-256gb-53666?pt=i",
-    f"{BASE}/pesquisa?q=iphone+15+pro+max",
 ]
 
 HEADERS = {
@@ -221,9 +220,10 @@ def main() -> int:
         pag = obter(pag_url)
         if pag:
             paginas_ok += 1
-            novos = {u for u in links_produto(pag) if corresponde(u, cores, caixa_aberta)}
-            if novos:
-                log(f"{pag_url}: {len(novos)} produto(s) correspondente(s)")
+            todos = links_produto(pag)
+            novos = {u for u in todos if corresponde(u, cores, caixa_aberta)}
+            modelos = sorted({m for u in todos for m in re.findall(r"iphone-\d+[a-z-]*?(?=-5g|-\d+(?:gb|tb))", normalizar(u))})
+            log(f"{pag_url}: {len(todos)} produtos na página, {len(novos)} correspondem. Modelos: {', '.join(modelos) or '-'}")
             candidatos |= novos
 
     # Remove duplicados que só diferem na query string
