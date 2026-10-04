@@ -64,7 +64,7 @@ SEM_STOCK = [
     "produto não disponível", "brevemente",
 ]
 COM_STOCK = [
-    "adicionar ao carrinho", "adicionar ao cesto", "comprar agora",
+    "adicionar ao carrinho", "adicionar ao cesto", "comprar agora", "continuar compra",
     "comprar já", "em stock", "disponível para entrega", "entrega em",
 ]
 
@@ -127,6 +127,9 @@ def obter_renderizado(url: str) -> str | None:
                 d: !!(e.disabled || e.getAttribute('aria-disabled') === 'true' || /disabled/i.test(e.className))
             })).filter(b => b.t)""")
         extra += "<!--BOTOES:" + json.dumps(botoes, ensure_ascii=False).replace("--", "- -") + "-->"
+        # Só o texto realmente visível (exclui modelos escondidos com todos os estados possíveis).
+        visivel = pagina.evaluate("() => document.body ? document.body.innerText : ''")
+        extra += "<!--VISIVEL:" + html.escape(visivel.replace("--", "- -")) + ":VISIVEL-->"
         return pagina.content() + extra
     except Exception as e:
         log(f"Erro no navegador em {url}: {e}")
@@ -196,9 +199,13 @@ def disponibilidade(pagina: str) -> tuple[str, str]:
         if m2:
             return ("disponivel" if m2.group(1) == "true" else "esgotado"), f"{chave}={m2.group(1)}"
 
-    # 2) Texto visível
-    texto = re.sub(r"<script.*?</script>|<style.*?</style>", " ", pagina, flags=re.S | re.I)
-    texto = normalizar(re.sub(r"<[^>]+>", " ", texto))
+    # 2) Texto visível (do navegador, se disponível; senão aproximado a partir do HTML)
+    v = re.search(r"<!--VISIVEL:(.*?):VISIVEL-->", pagina, re.S)
+    if v:
+        texto = normalizar(v.group(1))
+    else:
+        texto = re.sub(r"<script.*?</script>|<style.*?</style>|<!--.*?-->", " ", pagina, flags=re.S | re.I)
+        texto = normalizar(re.sub(r"<[^>]+>", " ", texto))
     sem = [k for k in SEM_STOCK if k in texto]
     com = [k for k in COM_STOCK if k in texto]
     if sem and not com:
@@ -216,6 +223,9 @@ def disponibilidade(pagina: str) -> tuple[str, str]:
             if b:
                 log(f"    botões visíveis: {b.group(1)[:1500]}")
         return "desconhecido", f"sinais mistos: com={com} sem={sem}"
+    if os.getenv("DIAGNOSTICO") != "0":
+        resumo = re.sub(r"\s+", " ", texto)[:800]
+        log(f"    texto visível (início): {resumo}")
     return "desconhecido", "sem sinais reconhecidos"
 
 
